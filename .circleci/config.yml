@@ -1,18 +1,23 @@
-version: '2.1'
-orbs:
-  snyk: snyk/snyk@2.1.0
-jobs:
-  build:
+version: 2.1
+executors:
+  my-custom-executor:
     docker:
-      - image: cimg/node:lts
+      - image: cimg/base:stable
+        auth:
+          # ensure you have first added these secrets
+          # visit app.circleci.com/settings/project/github/joaquinsilvasnyk/java-goof/environment-variables
+          username: $DOCKER_HUB_USER
+          password: $DOCKER_HUB_PASSWORD
+jobs:
+  snyk-scan:
+
+    executor: my-custom-executor
     steps:
       - checkout
-      - run: npm ci
-      - snyk/install
-      - run:
-          command: snyk version
-          name: Which version of snyk is installed
-      - run:
-          command: snyk code test
-          name: Run code scan
-workflows: null
+      - run: |
+          # echo Hello, World!
+
+workflows:
+  my-custom-workflow:
+    jobs:
+      - snyk-scan
