@@ -1,40 +1,40 @@
 version: 2.1
-executors:
-  default_image:
-    docker:
-    - image: cimg/base:current
+orbs: 
+  snyk: snyk/snyk@1.1.2
+
 jobs:
-  snyk-pipeline:
-    environment:
-      SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-    executor: default_image
+  build-and-test:
+    docker:
+      - image: cimg/openjdk:11.0
     steps:
-    - checkout
-    - run:
-        name: Setup Snyk + snyk-to-html
-        command: |
-          npm install snyk -g
-          npm install snyk-to-html -g
-          snyk auth ${{secrets.SNYK_TOKEN}}
-    - run:
-        name: Snyk Open Source
-        command: snyk monitor
-    - run:
-        name: Snyk Code
-        command: |
-          snyk code test || true
-          
-    - run:
-        name: Snyk SCA
-        command: snyk test || true
+      - checkout
+      - run:
+          name: Build
+          command: mvn -B -DskipTests clean package
+      - run:
+          name: Test
+          command: mvn test
+  snyk-scan:
+    docker:
+      - image: cimg/openjdk:11.0-node
+    steps:
+      - checkout
+      - run:
+          name: Install Snyk to HTML
+          command: npm install --prefix=$HOME/.local -g snyk-to-html
+      - snyk/scan:
+          monitor-on-build: false
+          fail-on-issues: false
+          command: code test
+          additional-arguments: --json-file-output=code-results.json
+      - run:
+          name: Generate Snyk HTML report
+          command: cat code-results.json | snyk-to-html -o code-report.html
+      - store_artifacts:
+          path: code-report.html
+
 workflows:
-  Synk_GHAS_Test_Scan:
+  build-test-snyk:
     jobs:
-    - snyk-pipeline:
-        filters:
-          branches:
-            only:
-            - main
-          tags: {}
-# Translated via CircleCI's Configuration Translator
-# Info :: Could not translate "pull_request" trigger event to an equivalent in CircleCI's config.yml
+      - build-and-test
+      - snyk-scan
